@@ -1,0 +1,26 @@
+# Orquestación local (§9.16). Desde la raíz del proyecto:
+#   docker compose -f docker/docker-compose.yml up --build
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../.env
+    environment:
+      VECTOR_DB_PATH: /app/storage/chroma
+      LOG_FILE: /app/logs/application.log
+    volumes:
+      - coverage_storage:/app/storage
+      - coverage_logs:/app/logs
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  coverage_storage:
+  coverage_logs:

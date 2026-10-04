@@ -1,0 +1,85 @@
+{
+  "description": "Golden set de evaluación (§8.19, §11.19). Se ejecuta con scripts/evaluate_golden_set.py contra el sistema real (requiere OPENAI_API_KEY e índice construido). expected_status admite varios valores aceptables porque la decisión final depende de la interpretación documental del LLM.",
+  "reference_date_note": "El dataset sintético tiene fecha de corte 2026-06-30.",
+  "cases": [
+    {
+      "id": "GS-01",
+      "affiliate_id": "A-00001",
+      "question": "¿Está cubierta la resonancia magnética de rodilla que me ordenó el médico?",
+      "expected_status": ["APPROVED", "APPROVED_WITH_RESTRICTIONS", "REJECTED"],
+      "expect_evidence": true,
+      "notes": "Titular activo, plan Esencial, 117 meses de antigüedad, autorización AUT-309500 para RM de rodilla (vigencia 2026-06-28: vencida si la consulta es posterior). Debe citar reglas de imágenes diagnósticas y autorización previa."
+    },
+    {
+      "id": "GS-02",
+      "affiliate_id": "A-00003",
+      "question": "Necesito una cirugía electiva de rodilla, ¿mi plan la cubre?",
+      "expected_status": ["REJECTED", "INSUFFICIENT_INFORMATION"],
+      "expect_evidence": true,
+      "notes": "Afiliado RETIRADO y en mora (98 días): el hallazgo bloqueante debe reflejarse en warnings y la respuesta no debe aprobar."
+    },
+    {
+      "id": "GS-03",
+      "affiliate_id": "A-00002",
+      "question": "¿Puedo acceder a terapias de rehabilitación física con mi plan?",
+      "expected_status": ["APPROVED", "APPROVED_WITH_RESTRICTIONS"],
+      "expect_evidence": true,
+      "notes": "Titular activo al día, 30 meses de antigüedad: supera carencias típicas. Debe citar la sección de terapias (DOC1 4.4) y criterios DOC3 2.3."
+    },
+    {
+      "id": "GS-04",
+      "affiliate_id": "A-00004",
+      "question": "¿Está cubierta la hospitalización para mi hija?",
+      "expected_status": ["APPROVED_WITH_RESTRICTIONS", "REJECTED", "INSUFFICIENT_INFORMATION"],
+      "expect_evidence": true,
+      "notes": "Beneficiaria con mora de 208 días y $300.000 pendientes: las condiciones de acceso por mora (DOC2) deben pesar en la decisión."
+    },
+    {
+      "id": "GS-05",
+      "affiliate_id": "A-00006",
+      "question": "¿Me cubren la tomografía de tórax que ya me habían autorizado?",
+      "expected_status": ["APPROVED", "APPROVED_WITH_RESTRICTIONS", "REJECTED"],
+      "expect_evidence": true,
+      "notes": "Autorización AUT-739270 vencida el 2026-04-12 y mora de 33 días; preexistencia de obesidad. La respuesta debe mencionar el estado de la autorización."
+    },
+    {
+      "id": "GS-06",
+      "affiliate_id": "A-00001",
+      "question": "¿Cuál es el copago que me aplica para una consulta ambulatoria?",
+      "expected_status": ["APPROVED", "APPROVED_WITH_RESTRICTIONS", "INSUFFICIENT_INFORMATION"],
+      "expect_evidence": true,
+      "notes": "Debe citar la tabla de copagos del plan Esencial (DOC1 §4.1) — verifica que las tablas del Word se indexaron."
+    },
+    {
+      "id": "GS-07",
+      "affiliate_id": "A-00002",
+      "question": "¿Mi plan cubre cirugía estética de nariz por razones puramente cosméticas?",
+      "expected_status": ["REJECTED", "INSUFFICIENT_INFORMATION"],
+      "expect_evidence": true,
+      "notes": "Las exclusiones (DOC2 §5) deberían producir un rechazo fundamentado."
+    },
+    {
+      "id": "GS-08",
+      "affiliate_id": "A-00001",
+      "question": "¿Qué opinas del clima de hoy en Bogotá?",
+      "expected_status": ["INSUFFICIENT_INFORMATION"],
+      "expect_evidence": false,
+      "notes": "Fuera de dominio: no debe inventar; sin evidencia relevante debe declarar insuficiencia (§8.16)."
+    },
+    {
+      "id": "GS-09",
+      "affiliate_id": "A-99999",
+      "question": "¿Está cubierta mi resonancia?",
+      "expected_http": 404,
+      "notes": "Afiliado inexistente: error controlado 404 (§11.15)."
+    },
+    {
+      "id": "GS-10",
+      "affiliate_id": "A-00005",
+      "question": "¿Necesito autorización previa para una resonancia magnética y cómo la tramito?",
+      "expected_status": ["APPROVED", "APPROVED_WITH_RESTRICTIONS", "INSUFFICIENT_INFORMATION"],
+      "expect_evidence": true,
+      "notes": "Debe citar los requisitos de autorización previa (DOC2 §4)."
+    }
+  ]
+}

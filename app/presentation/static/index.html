@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Asistente de Validación de Cobertura</title>
+<style>
+  :root {
+    --bg: #f5f7fa; --card: #ffffff; --ink: #1f2937; --muted: #6b7280;
+    --brand: #1e5aa8; --border: #e5e7eb;
+    --ok: #15803d; --warn: #b45309; --bad: #b91c1c; --info: #4b5563;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--ink); }
+  header { background: var(--brand); color: #fff; padding: 1.1rem 1.5rem; }
+  header h1 { margin: 0; font-size: 1.15rem; font-weight: 600; }
+  header p { margin: .2rem 0 0; font-size: .8rem; opacity: .85; }
+  main { max-width: 880px; margin: 1.5rem auto; padding: 0 1rem; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem; margin-bottom: 1rem; }
+  label { display: block; font-size: .8rem; font-weight: 600; color: var(--muted); margin-bottom: .3rem; }
+  input, textarea { width: 100%; padding: .6rem .7rem; border: 1px solid var(--border); border-radius: 8px; font: inherit; }
+  textarea { min-height: 110px; resize: vertical; }
+  .row { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .row > div:first-child { flex: 0 0 180px; }
+  .row > div:last-child { flex: 1; min-width: 260px; }
+  button { margin-top: .9rem; background: var(--brand); color: #fff; border: 0; border-radius: 8px; padding: .65rem 1.4rem; font: inherit; font-weight: 600; cursor: pointer; }
+  button:disabled { opacity: .55; cursor: wait; }
+  .badge { display: inline-block; padding: .25rem .7rem; border-radius: 999px; font-size: .78rem; font-weight: 700; color: #fff; }
+  .APPROVED { background: var(--ok); }
+  .APPROVED_WITH_RESTRICTIONS { background: var(--warn); }
+  .REJECTED { background: var(--bad); }
+  .INSUFFICIENT_INFORMATION { background: var(--info); }
+  .muted { color: var(--muted); font-size: .8rem; }
+  .evidence { border-left: 3px solid var(--brand); background: #f8fafc; padding: .6rem .8rem; border-radius: 0 8px 8px 0; margin: .5rem 0; }
+  .evidence .src { font-size: .75rem; color: var(--muted); margin-bottom: .25rem; }
+  .warning { color: var(--warn); margin: .25rem 0; }
+  #status-line { margin-top: .8rem; font-size: .85rem; color: var(--muted); }
+  .error-box { border-left: 3px solid var(--bad); background: #fef2f2; padding: .7rem .9rem; border-radius: 0 8px 8px 0; color: var(--bad); }
+  h3 { margin: 1rem 0 .4rem; font-size: .95rem; }
+  footer { text-align: center; font-size: .75rem; color: var(--muted); padding: 1rem; }
+  a { color: var(--brand); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Asistente de Validación de Cobertura</h1>
+  <p>Consulta si un procedimiento está cubierto por el plan de salud del afiliado — RAG con evidencia documental</p>
+</header>
+<main>
+  <div class="card">
+    <form id="query-form">
+      <div class="row">
+        <div>
+          <label for="affiliate">ID del afiliado</label>
+          <input id="affiliate" placeholder="A-00427" required>
+        </div>
+        <div>
+          <label for="question">Consulta</label>
+          <textarea id="question" placeholder="¿La resonancia magnética de rodilla prescrita por mi médico está cubierta por mi plan?" required></textarea>
+        </div>
+      </div>
+      <button id="send" type="submit">Consultar cobertura</button>
+      <div id="status-line"></div>
+    </form>
+  </div>
+  <div id="result"></div>
+</main>
+<footer>API: <a href="/docs">/docs</a> · <a href="/health">health</a> · <a href="/metrics">metrics</a></footer>
+<script>
+const STATUS_LABEL = {
+  APPROVED: "Cubierto",
+  APPROVED_WITH_RESTRICTIONS: "Cubierto con condiciones",
+  REJECTED: "No cubierto",
+  INSUFFICIENT_INFORMATION: "Información insuficiente",
+};
+const STRENGTH_LABEL = { STRONG: "sólida", PARTIAL: "parcial", INSUFFICIENT: "insuficiente" };
+const form = document.getElementById("query-form");
+const result = document.getElementById("result");
+const statusLine = document.getElementById("status-line");
+const sendBtn = document.getElementById("send");
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  result.innerHTML = "";
+  sendBtn.disabled = true;
+  statusLine.textContent = "Analizando: recuperando evidencia y consultando el modelo…";
+  const started = performance.now();
+  try {
+    const response = await fetch("/query", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        affiliate_id: document.getElementById("affiliate").value.trim(),
+        question: document.getElementById("question").value.trim(),
+      }),
+    });
+    const body = await response.json();
+    if (!response.ok) {
+      const detail = body.detail ?? body.error ?? "Error desconocido";
+      result.innerHTML = `<div class="card error-box"><strong>Error ${response.status}</strong> — ${esc(typeof detail === "string" ? detail : JSON.stringify(detail))}</div>`;
+      return;
+    }
+    render(body);
+  } catch (err) {
+    result.innerHTML = `<div class="card error-box"><strong>Sin conexión con la API</strong> — ${esc(err.message)}</div>`;
+  } finally {
+    sendBtn.disabled = false;
+    statusLine.textContent = `Tiempo total: ${((performance.now() - started) / 1000).toFixed(1)} s`;
+  }
+});
+
+function render(r) {
+  const evidence = (r.evidence ?? []).map((e) => `
+    <div class="evidence">
+      <div class="src">${esc(e.document_name)} · fragmento <code>${esc(e.chunk_id)}</code>${e.similarity != null ? ` · similitud ${Number(e.similarity).toFixed(2)}` : ""}</div>
+      <div>${esc(e.content)}</div>
+    </div>`).join("");
+  const warnings = (r.warnings ?? []).map((w) => `<div class="warning">⚠ ${esc(w)}</div>`).join("");
+  result.innerHTML = `
+    <div class="card">
+      <span class="badge ${esc(r.status)}">${esc(STATUS_LABEL[r.status] ?? r.status)}</span>
+      <span class="muted"> · evidencia ${esc(STRENGTH_LABEL[r.evidence_strength] ?? r.evidence_strength)}</span>
+      <h3>Resumen</h3><div>${esc(r.summary)}</div>
+      <h3>Razonamiento</h3><div>${esc(r.reasoning)}</div>
+      ${warnings ? `<h3>Advertencias</h3>${warnings}` : ""}
+      ${evidence ? `<h3>Evidencia documental (${r.evidence.length})</h3>${evidence}` : ""}
+      <h3>Trazabilidad</h3>
+      <div class="muted">trace_id ${esc(r.trace.trace_id)} · modelo ${esc(r.trace.model ?? "—")} · prompt v${esc(r.trace.prompt_version ?? "—")} · ${r.trace.latency_ms ? Math.round(r.trace.latency_ms) + " ms LLM" : "sin llamada LLM"} · ${r.trace.retrieved_chunks} fragmentos recuperados</div>
+    </div>`;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+# Entornos y secretos
+.env
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Persistencia local (nunca versionar índices ni logs)
+storage/
+logs/
+
+# IDE / SO
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Empaquetado de entrega (duplica el contenido ya versionado)
+coverage-assistant-entrega.zip
